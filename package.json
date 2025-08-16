@@ -1,0 +1,9 @@
+{
+  "name": "coupang-daily",
+  "version": "1.0.0",
+  "description": "Coupang API fetch project",
+  "main": "index.js",
+  "dependencies": {
+    "node-fetch": "^2.6.9"
+  }
+}
