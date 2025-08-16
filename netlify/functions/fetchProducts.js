@@ -1,64 +1,45 @@
 // netlify/functions/fetchProducts.js
-const fetch = require("node-fetch");
-const crypto = require("crypto");
+import fetch from "node-fetch";
 
-exports.handler = async (event) => {
+export const handler = async (event, context) => {
   try {
-    // ✅ URL에서 keyword 파라미터 받기 (기본값: 노트북)
-    const { keyword = "노트북", limit = 10 } = event.queryStringParameters;
+    const { query, sort, category } = event.queryStringParameters;
 
-    // ✅ 쿠팡 오픈 API 기본 정보
-    const domain = "https://api-gateway.coupang.com";
-    const path = `/v2/providers/affiliate_open_api/apis/openapi/v1/products/search?keyword=${encodeURIComponent(
-      keyword
-    )}&limit=${limit}`;
+    // 쿠팡 API 기본 정보
+    const COUPANG_API_KEY = process.env.CP_API_KEY;  // Netlify 환경변수에 저장한 값
+    const COUPANG_API_SECRET = process.env.CP_API_SECRET; // 필요하다면 추가
+    const BASE_URL = "https://api-gateway.coupang.com/v2/providers/affiliate_open_api/apis/openapi/products/search";
 
-    const method = "GET";
-    const accessKey = process.env.COUPANG_ACCESS_KEY;
-    const secretKey = process.env.COUPANG_SECRET_KEY;
+    // 검색어 없으면 기본값
+    const keyword = query || "노트북";
 
-    if (!accessKey || !secretKey) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: "쿠팡 API 키가 설정되지 않았습니다." }),
-      };
-    }
+    // API URL
+    const url = `${BASE_URL}?keyword=${encodeURIComponent(keyword)}&limit=5&sorter=${sort || "salesVolumeDesc"}`;
 
-    // ✅ 날짜 포맷: 20250817T111530Z (밀리초 제거)
-    const datetime = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
-
-    // ✅ 시그니처 생성
-    const message = `${datetime}${method}${path}`;
-    const signature = crypto
-      .createHmac("sha256", secretKey)
-      .update(message)
-      .digest("hex");
-
-    const authorization = `CEA algorithm=HmacSHA256, access-key=${accessKey}, signed-date=${datetime}, signature=${signature}`;
-
-    // ✅ API 호출
-    const response = await fetch(domain + path, {
-      method,
+    // API 요청
+    const response = await fetch(url, {
+      method: "GET",
       headers: {
-        Authorization: authorization,
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${COUPANG_API_KEY}`,
       },
     });
 
-    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(`쿠팡 API 요청 실패: ${response.status}`);
+    }
 
-    // ✅ 디버깅용 로그 (Netlify Functions 로그에서 확인 가능)
-    console.log("쿠팡 API 응답:", data);
+    const data = await response.json();
 
     return {
       statusCode: 200,
       body: JSON.stringify(data),
     };
   } catch (error) {
-    console.error("fetchProducts.js 오류:", error);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message }),
     };
   }
 };
+
