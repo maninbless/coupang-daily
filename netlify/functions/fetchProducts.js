@@ -1,40 +1,79 @@
-// netlify/functions/fetchProducts.js
+import crypto from "crypto";
+
 export async function handler(event, context) {
   try {
-    const accessKey = process.env.COUPANG_ACCESS_KEY;
-    const secretKey = process.env.COUPANG_SECRET_KEY;
-    const partnerId = process.env.COUPANG_PARTNER_ID;
+    // ===== 1. 환경 변수 불러오기 =====
+    const ACCESS_KEY = process.env.COUPANG_ACCESS_KEY;
+    const SECRET_KEY = process.env.COUPANG_SECRET_KEY;
+    const PARTNER_ID = process.env.COUPANG_PARTNER_ID;
 
-    // 테스트용 API 엔드포인트 (베스트 상품 가져오기 예시)
-    const endpoint = `https://api-gateway.coupang.com/v2/providers/affiliate_open_api/apis/openapi/v1/deeplink`;
+    if (!ACCESS_KEY || !SECRET_KEY || !PARTNER_ID) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "환경변수가 설정되지 않았습니다." }),
+      };
+    }
 
-    // 요청 body (예: 특정 상품 링크 생성)
-    const body = {
-      coupangUrls: ["https://www.coupang.com/np/search?q=노트북"],
-      subId: "test-sub-id"
-    };
+    // ===== 2. 요청 URL 구성 =====
+    const domain = "https://api-gateway.coupang.com";
+    const resource = `/v2/providers/affiliate_open_api/apis/openapi/products/search`;
+    const keyword = "노트북"; // 원하는 검색 키워드
+    const url = `${domain}${resource}?keyword=${encodeURIComponent(keyword)}&limit=12`;
 
-    const response = await fetch(endpoint, {
-      method: "POST",
+    // ===== 3. HMAC 서명 생성 =====
+    const datetime = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
+    const method = "GET";
+    const message = `${datetime}${method}${resource}?keyword=${encodeURIComponent(keyword)}&limit=12`;
+
+    const signature = crypto
+      .createHmac("sha256", SECRET_KEY)
+      .update(message)
+      .digest("hex");
+
+    const authorization =
+      `CEA algorithm=HmacSHA256, access-key=${ACCESS_KEY}, signed-date=${datetime}, signature=${signature}`;
+
+    // ===== 4. 쿠팡 API 호출 =====
+    const res = await fetch(url, {
+      method,
       headers: {
         "Content-Type": "application/json",
-        "X-COUPANG-API-ACCESS-KEY": accessKey,
-        "X-COUPANG-API-SECRET-KEY": secretKey,
-        "X-COUPANG-PARTNER-ID": partnerId,
+        Authorization: authorization,
       },
-      body: JSON.stringify(body),
     });
 
-    const data = await response.json();
+    if (!res.ok) {
+      throw new Error(`쿠팡 API 오류: ${res.status}`);
+    }
 
+    const data = await res.json();
+
+    // ===== 5. 필요한 데이터만 추출 =====
+    const items = (data.data?.productData || []).map((p, idx) => ({
+      id: p.productId,
+      title: p.productName,
+      price: p.productPrice,
+      imageUrl: p.productImage,
+      deeplink: p.productUrl,
+      categoryId: p.categoryId,
+      categoryName: p.categoryName,
+      rating: p.ratingAverage,
+      pop: idx + 1, // 임시 인기 순위
+    }));
+
+    // ===== 6. JSON 응답 =====
     return {
       statusCode: 200,
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        updatedAt: new Date().toISOString(),
+        items,
+      }),
     };
-  } catch (error) {
+  } catch (err) {
+    console.error(err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message }),
+      body: JSON.stringify({ error: err.message }),
     };
   }
 }
