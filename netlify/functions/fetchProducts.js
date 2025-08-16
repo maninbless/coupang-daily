@@ -1,6 +1,7 @@
-import crypto from "crypto";
+const crypto = require("crypto");
+const fetch = require("node-fetch"); // Netlify 런타임 버전에 따라 필요
 
-export async function handler(event, context) {
+exports.handler = async (event, context) => {
   try {
     // ===== 1. 환경 변수 불러오기 =====
     const ACCESS_KEY = process.env.COUPANG_ACCESS_KEY;
@@ -18,20 +19,20 @@ export async function handler(event, context) {
     const domain = "https://api-gateway.coupang.com";
     const resource = `/v2/providers/affiliate_open_api/apis/openapi/products/search`;
     const keyword = "노트북"; // 원하는 검색 키워드
-    const url = `${domain}${resource}?keyword=${encodeURIComponent(keyword)}&limit=12`;
+    const query = `keyword=${encodeURIComponent(keyword)}&limit=12`;
+    const url = `${domain}${resource}?${query}`;
 
     // ===== 3. HMAC 서명 생성 =====
     const datetime = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
     const method = "GET";
-    const message = `${datetime}${method}${resource}?keyword=${encodeURIComponent(keyword)}&limit=12`;
+    const message = `${datetime}${method}${resource}?${query}`;
 
     const signature = crypto
       .createHmac("sha256", SECRET_KEY)
       .update(message)
       .digest("hex");
 
-    const authorization =
-      `CEA algorithm=HmacSHA256, access-key=${ACCESS_KEY}, signed-date=${datetime}, signature=${signature}`;
+    const authorization = `CEA algorithm=HmacSHA256, access-key=${ACCESS_KEY}, signed-date=${datetime}, signature=${signature}`;
 
     // ===== 4. 쿠팡 API 호출 =====
     const res = await fetch(url, {
@@ -76,4 +77,4 @@ export async function handler(event, context) {
       body: JSON.stringify({ error: err.message }),
     };
   }
-}
+};
