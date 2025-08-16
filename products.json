@@ -1,25 +1,6 @@
-{
-  "updatedAt": "2025-08-17T02:30:00+09:00",
-  "items": [
-    {
-      "title": "삼성 갤럭시 S24",
-      "price": 1200000,
-      "rating": 4.8,
-      "imageUrl": "https://example.com/s24.jpg",
-      "deeplink": "https://link.coupang.com/...",
-      "categoryName": "스마트폰",
-      "categoryId": "1001",
-      "pop": 1
-    },
-    {
-      "title": "LG 그램 노트북",
-      "price": 1700000,
-      "rating": 4.6,
-      "imageUrl": "https://example.com/gram.jpg",
-      "deeplink": "https://link.coupang.com/...",
-      "categoryName": "노트북",
-      "categoryId": "1002",
-      "pop": 2
-    }
-  ]
-}
+exports.handler = async (event, context) => {
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ message: "Hello from Netlify!" }),
+  };
+};
