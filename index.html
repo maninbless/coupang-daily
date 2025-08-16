@@ -4,23 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>오늘의 쿠팡 인기상품</title>
-  <meta name="description" content="매일 자동으로 갱신되는 쿠팡 인기상품 모음" />
-  <!-- Tailwind Play CDN (빌드 없이 사용) -->
+  <meta name="description" content="쿠팡 API를 통해 자동 갱신되는 인기상품 모음" />
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* 이미지 비율 유지 카드 커버 */
-    .img-cover{object-fit:cover}
-  </style>
-</head>
-<body class="bg-gray-50 text-gray-900">
-  <!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <title>오늘의 쿠팡 인기상품</title>
-  <style>
+    .img-cover { object-fit: cover; }
     .notice-bar {
-      background-color: #03C75A; /* 네이버 초록 */
+      background-color: #03C75A;
       color: white;
       text-align: center;
       padding: 10px;
@@ -31,17 +21,14 @@
       width: 100%;
       z-index: 9999;
     }
-    body {
-      margin: 0;
-      padding-top: 50px; /* 상단 고정 영역만큼 여백 */
-      font-family: Arial, sans-serif;
-    }
+    body { margin: 0; padding-top: 50px; font-family: Arial, sans-serif; }
   </style>
 </head>
-<body>
+<body class="bg-gray-50 text-gray-900">
   <div class="notice-bar">
     이 포스팅은 네이버 쇼핑 커넥트 활동의 일환으로, 판매 발생 시 수수료를 제공받습니다.
   </div>
+
   <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
     <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
       <h1 class="text-xl sm:text-2xl font-bold">오늘의 쿠팡 인기상품</h1>
@@ -65,7 +52,6 @@
     </section>
 
     <section id="grid" class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></section>
-
     <div id="empty" class="hidden text-center text-gray-500 py-16">조건에 맞는 상품이 없습니다.</div>
   </main>
 
@@ -92,9 +78,6 @@
   </template>
 
   <script>
-    // ===== 설정 =====
-    const PRODUCTS_JSON = 'products.json'; // GitHub Actions가 매일 갱신하는 파일
-
     // ===== 유틸 =====
     const fmtPrice = n => (n==null? '가격 표시 없음' : new Intl.NumberFormat('ko-KR',{style:'currency',currency:'KRW',maximumFractionDigits:0}).format(n));
     const by = (k, dir=1) => (a,b)=> ( (a?.[k] ?? 0) - (b?.[k] ?? 0) ) * dir;
@@ -105,26 +88,27 @@
       const status = document.getElementById('status');
       status.textContent = '불러오는 중…';
       try{
-        const res = await fetch(`${PRODUCTS_JSON}?ts=${Date.now()}`, {cache:'no-store'});
+        // Netlify Functions 호출 (fetchProducts.js)
+        const res = await fetch("/.netlify/functions/fetchProducts");
         if(!res.ok) throw new Error('HTTP '+res.status);
         const data = await res.json();
-        // data: { updatedAt, items: [ {title, price, rating, imageUrl, deeplink, categoryName, categoryId} ] }
+
         state.all = Array.isArray(data.items) ? data.items : [];
         state.view = [...state.all];
         state.cats.clear();
         state.all.forEach(i=>{ if(i.categoryName) state.cats.set(i.categoryId||i.categoryName, i.categoryName); });
+
         fillCategories();
         render();
         status.textContent = data.updatedAt ? `업데이트: ${new Date(data.updatedAt).toLocaleString('ko-KR')}` : '';
       }catch(e){
         console.error(e);
-        status.textContent = '데이터를 불러오지 못했습니다. products.json을 확인하세요.';
+        status.textContent = '데이터를 불러오지 못했습니다. (fetchProducts 함수 확인)';
       }
     }
 
     function fillCategories(){
       const sel = document.getElementById('cat');
-      // 초기화 (첫 옵션 유지)
       sel.querySelectorAll('option:not(:first-child)').forEach(o=>o.remove());
       [...state.cats.entries()].sort((a,b)=>a[1].localeCompare(b[1],'ko')).forEach(([id,name])=>{
         const o = document.createElement('option');
@@ -148,13 +132,13 @@
       if(sort==='priceAsc') items.sort(by('price', +1));
       else if(sort==='priceDesc') items.sort(by('price', -1));
       else if(sort==='rating') items.sort(by('rating', -1));
-      else items.sort(by('pop', -1)); // 인기순 가정값
+      else items.sort(by('pop', -1));
 
       const grid = document.getElementById('grid');
       grid.innerHTML = '';
 
       const tpl = document.getElementById('card-tpl');
-      items.forEach((it,idx)=>{
+      items.forEach((it)=>{
         const node = tpl.content.cloneNode(true);
         const a = node.querySelector('a');
         const img = node.querySelector('img');
@@ -188,3 +172,4 @@
   </script>
 </body>
 </html>
+
