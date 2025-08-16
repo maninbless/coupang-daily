@@ -1,13 +1,13 @@
 [
   {
-    "title": "삼성 갤럭시 버즈2",
+    "name": "삼성 갤럭시 버즈2",
     "link": "https://coupa.ng/abc123",
     "image": "https://image10.coupangcdn.com/image/retail/images/2022/05/01/abc123.jpg",
     "price": 89000,
     "category": "전자제품"
   },
   {
-    "title": "아이리버 무선 마우스",
+    "name": "아이리버 무선 마우스",
     "link": "https://coupa.ng/xyz456",
     "image": "https://image10.coupangcdn.com/image/retail/images/2022/05/01/xyz456.jpg",
     "price": 12900,
